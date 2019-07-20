@@ -1,0 +1,1554 @@
+"use strict";
+
+function markMatch (text, term) {
+	var match = text.toUpperCase().indexOf(term.toUpperCase());
+	
+	var $result = $('<span></span>');
+
+	if (match < 0) {
+		return $result.text(text);
+	}
+
+	$result.text(text.substring(0, match));
+
+	var $match = $('<span class="select2-rendered__match"></span>');
+	$match.text(text.substring(match, match + term.length));
+
+	$result.append($match);
+
+	$result.append(text.substring(match + term.length));
+
+	return $result;
+}
+
+
+function is_mobile(){
+	var patt = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+	return patt.test(navigator.userAgent);
+}
+
+var monthFull = {
+		"th": ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
+		"en": ["January","February","March","April","May","June","July","August","September","October","November","December"]
+	};
+
+var monthShort = {
+		"th": ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],
+		"en": ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+	};
+
+
+var apps = angular.module('tescoApps', ['ngSanitize']);
+
+	/* Custom Directive */
+
+	apps.directive('mySelect2', function($timeout){
+		return {
+			restrict: 'A',
+			link: function(scope, elem, attrs){
+				$timeout(function(){
+					var query = {};
+					$( elem ).select2({
+						width: '100%',
+						minimumResultsForSearch: -1,
+						dropdownParent: $( elem ).parents('.select') ,
+					});
+
+					if( is_mobile() ) {
+						$( elem ).select2("destroy");
+						$( elem ).parent(".select").removeClass("select2-parent");
+					}
+				}, 200);
+			}
+		};
+	});
+
+
+	apps.directive('plazaView', function($http, $filter){
+		return {
+			restrict: 'A' ,
+			link: function (scope, elem, attrs) {
+	            $http({
+				  method: 'GET',
+				  url: window._site_params.site_url + '/plaza/page_detail_view/' + attrs.plazaView
+				}).then(function ( resp ) {
+
+				});
+	        }
+		};
+	});
+
+
+	apps.directive('isNumber', function () {
+	    return {
+	        require: 'ngModel',
+	        restrict: 'A',
+	        link: function(scope, element, attrs, ctrl) {
+	            ctrl.$parsers.push(function(input) {
+	                if (input == undefined) return ''
+	                var inputNumber = input.toString().replace(/[^0-9]/g, '');
+	                if (inputNumber != input) {
+	                    ctrl.$setViewValue(inputNumber);
+	                    ctrl.$render();
+	                }
+	                return inputNumber;
+	            });
+	        }
+	    };
+	});
+
+
+	apps.directive('selectProvince', function($timeout){
+		return {
+			restrict: 'A' ,
+			link: function(scope, elem, attrs){
+
+				elem.bind('change', function(obj){
+					var province_id = angular.element( obj.target ).find('option:selected').data('id');
+						scope.district = window._group_district[ province_id ];
+				});
+
+				$timeout(function(){
+
+					if( typeof attrs.filters == 'undefined' ){
+						$( elem ).select2({
+							width: '100%',
+							minimumResultsForSearch: -1,
+							dropdownParent: elem.parent(),
+							language: {
+								searching: function (params) {
+									var query = params;
+									return 'Searching...';
+								}
+							}
+						});
+					}else{
+						var query = {};
+
+						$( elem ).select2({
+							width: '100%',
+							allowClear: true,
+							dropdownParent: elem.parent(),
+							templateResult: function (item) {
+								if (item.loading) {
+									return item.text;
+								}
+				
+								var term = query.term || '';
+								var $result = markMatch(item.text, term);
+				
+								return $result;
+							},
+							language: {
+								searching: function (params) {
+									query = params;
+									return 'Searching...';
+								}
+							}
+						}).on("select2:unselecting", function(e) {
+							$(this).data('state', 'unselected');
+						}).on("select2:open", function(e) {
+							if ($(this).data('state') === 'unselected') {
+								$(this).removeData('state'); 
+								var self = $(this);
+								self.select2('close');
+							} 
+						});
+					}
+					
+			        $( elem ).parents(".select").addClass("select2-parent");
+				}, 100);
+
+			}
+		};
+	});
+
+
+	apps.directive('selectDistrict', function($timeout){
+		return {
+			restrict: 'A' ,
+			link: function(scope, elem, attrs){
+
+				if( typeof window._group_subdistrict != 'undefined' ){
+					elem.bind('change', function(obj){
+						var district_id = angular.element( obj.target ).find('option:selected').data('id');
+							scope.subdistrict = window._group_subdistrict[ district_id ];
+					});
+				}
+
+				scope.$watch('district', function(){
+					$timeout(function(){
+						$( elem ).select2('destroy');
+						if( typeof attrs.filters == 'undefined' ){
+							$( elem ).select2({
+								width: '100%',
+								minimumResultsForSearch: -1,
+								dropdownParent: elem.parent(),
+								language: {
+									searching: function (params) {
+										var query = params;
+										return 'Searching...';
+									}
+								}
+							});
+						}else{
+							var query = {};
+
+							$( elem ).select2({
+								width: '100%',
+								allowClear: true,
+								dropdownParent: elem.parent(),
+								templateResult: function (item) {
+									if (item.loading) {
+										return item.text;
+									}
+					
+									var term = query.term || '';
+									var $result = markMatch(item.text, term);
+					
+									return $result;
+								},
+								language: {
+									searching: function (params) {
+										query = params;
+										return 'Searching...';
+									}
+								}
+							}).on("select2:unselecting", function(e) {
+								$(this).data('state', 'unselected');
+							}).on("select2:open", function(e) {
+								if ($(this).data('state') === 'unselected') {
+									$(this).removeData('state'); 
+									var self = $(this);
+									self.select2('close');
+								} 
+							});
+						}
+						
+					}, 100);
+				});
+
+
+				$timeout(function(){
+					$( elem ).parents(".select").addClass("select2-parent");
+
+					if( typeof attrs.filters == 'undefined' ){
+						$( elem ).select2({
+							width: '100%',
+							minimumResultsForSearch: -1,
+							dropdownParent: elem.parent(),
+							language: {
+								searching: function (params) {
+									var query = params;
+									return 'Searching...';
+								}
+							}
+						});
+					}else{
+						var query = {};
+
+						$( elem ).select2({
+							width: '100%',
+							allowClear: true,
+							dropdownParent: elem.parent(),
+							templateResult: function (item) {
+								if (item.loading) {
+									return item.text;
+								}
+				
+								var term = query.term || '';
+								var $result = markMatch(item.text, term);
+				
+								return $result;
+							},
+							language: {
+								searching: function (params) {
+									query = params;
+									return 'Searching...';
+								}
+							}
+						}).on("select2:unselecting", function(e) {
+							$(this).data('state', 'unselected');
+						}).on("select2:open", function(e) {
+							if ($(this).data('state') === 'unselected') {
+								$(this).removeData('state'); 
+								var self = $(this);
+								self.select2('close');
+							} 
+						});
+					}
+
+				}, 100);
+
+			}
+		};
+	});
+
+
+	apps.directive('selectSubdistrict', function($timeout){
+		return {
+			restrict: 'A' ,
+			link: function(scope, elem, attrs){
+
+				scope.$watch('subdistrict', function(){
+					$timeout(function(){
+						$( elem ).select2('destroy');
+						if( typeof attrs.filters == 'undefined' ){
+							$( elem ).select2({
+								width: '100%',
+								minimumResultsForSearch: -1,
+								dropdownParent: elem.parent(),
+								language: {
+									searching: function (params) {
+										var query = params;
+										return 'Searching...';
+									}
+								}
+							});
+						}else{
+							var query = {};
+
+							$( elem ).select2({
+								width: '100%',
+								allowClear: true,
+								dropdownParent: elem.parent(),
+								templateResult: function (item) {
+									if (item.loading) {
+										return item.text;
+									}
+					
+									var term = query.term || '';
+									var $result = markMatch(item.text, term);
+					
+									return $result;
+								},
+								language: {
+									searching: function (params) {
+										query = params;
+										return 'Searching...';
+									}
+								}
+							}).on("select2:unselecting", function(e) {
+								$(this).data('state', 'unselected');
+							}).on("select2:open", function(e) {
+								if ($(this).data('state') === 'unselected') {
+									$(this).removeData('state'); 
+									var self = $(this);
+									self.select2('close');
+								} 
+							});
+						}
+					}, 100);
+				});
+
+
+				$timeout(function(){
+					$( elem ).parents(".select").addClass("select2-parent");
+					if( typeof attrs.filters == 'undefined' ){
+						$( elem ).select2({
+							width: '100%',
+							minimumResultsForSearch: -1,
+							dropdownParent: elem.parent(),
+							language: {
+								searching: function (params) {
+									var query = params;
+									return 'Searching...';
+								}
+							}
+						});
+					}else{
+						var query = {};
+
+						$( elem ).select2({
+							width: '100%',
+							allowClear: true,
+							dropdownParent: elem.parent(),
+							templateResult: function (item) {
+								if (item.loading) {
+									return item.text;
+								}
+				
+								var term = query.term || '';
+								var $result = markMatch(item.text, term);
+				
+								return $result;
+							},
+							language: {
+								searching: function (params) {
+									query = params;
+									return 'Searching...';
+								}
+							}
+						}).on("select2:unselecting", function(e) {
+							$(this).data('state', 'unselected');
+						}).on("select2:open", function(e) {
+							if ($(this).data('state') === 'unselected') {
+								$(this).removeData('state'); 
+								var self = $(this);
+								self.select2('close');
+							} 
+						});
+					}
+				}, 100);
+
+			}
+		};
+	});
+
+
+	apps.directive('fbShareCount', function($http, $filter){
+		return {
+			restrict: 'A' ,
+			link: function (scope, elem, attrs) {
+	            $http({
+				  method: 'GET',
+				  url: window._site_params.fbShareCount + '?q=' + attrs.fbShareCount
+				}).then(function ( resp ) {
+					if( parseInt( resp.data.share_count ) != 0 ){
+						angular.element( elem ).parent().show();
+					}
+				  	angular.element( elem ).html( $filter('number')( resp.data.share_count ) );
+				});
+	        }
+		};
+	});
+
+	apps.directive('dotted', function($timeout){
+		return {
+			restrict: 'A' ,
+			link: function (scope, elem, attrs){
+				$timeout(function(){
+					$( elem ).dotdotdot({
+			            ellipsis: '...',
+			            wrap: 'word',
+			            fallbackToLetter: true,
+			            watch: true,
+			            //after: '.ic'
+			        });
+			        $( elem ).addClass('dot');
+				}, 100);
+			}
+		};
+	});
+
+	apps.directive('formSubscribe', function($http, $timeout){
+
+		function emailValid( email ){
+			var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    		return re.test(String(email).toLowerCase());
+		}
+
+		return {
+			restrict: 'A' ,
+			link: function(scope, elem, attrs){
+					
+				scope.text_error = '';
+				scope.label_success = false;
+				scope.label_error = false;
+
+				angular.element( elem ).on('submit', function(){
+
+
+					if( !emailValid( angular.element( elem ).find('input[name=email]').val() ) ){
+
+						scope.text_error = window._site_params.sitelang == 'th' ? 'กรุณากรอกอีเมลให้ถูกต้อง' : 'Please input correct data.';
+						scope.label_success = false;
+						scope.label_error = true;
+
+						angular.element( elem ).find('input[name=email]').val('');
+
+						$timeout(function(){
+							angular.element( elem ).find('input[name=email]').blur();
+						}, 100);
+
+						$timeout(function(){
+							scope.label_success = false;
+							scope.label_error = false;
+						}, 5000);
+								
+					}else{
+
+						$http({
+							method: 'POST',
+							url: window._site_params.subscribe,
+							data:{
+								email: angular.element( elem ).find('input[name=email]').val(),
+								category_id: '1'
+							}
+						}).then(function( resp ){
+
+							if( resp.data.response == 'duplicate' ){
+
+								scope.text_error = window._site_params.sitelang == 'th' ? 'อีเมลนี้มีอยู่ในระบบแล้ว' : 'This email is already registered in our system';
+								scope.label_success = false;
+								scope.label_error = true;
+
+								angular.element( elem ).find('input[name=email]').val('');
+
+								$timeout(function(){
+									angular.element( elem ).find('input[name=email]').blur();
+								}, 100);
+
+								$timeout(function(){
+									scope.label_success = false;
+									scope.label_error = false;
+								}, 5000);
+
+							}else if( resp.data.response == 'success' ){
+
+								scope.text_error = window._site_params.sitelang == 'th' ? 'บันทึกข้อมูลเรียบร้อยแล้ว' : 'Your registration is complete';
+								scope.label_success = true;
+								scope.label_error = false;
+
+								$timeout(function(){
+
+									dataLayer.push({
+										'event': 'subscribe_newsletter', 
+										'event_category': 'footer', 
+										'event_action': 'subscribe', 
+										'event_label': 'subscribe_success', 
+										'dimension2': btoa( angular.element( elem ).find('input[name=email]').val() )
+									});
+
+									angular.element( elem ).find('input[name=email]').val('');
+									angular.element( elem ).find('input[name=email]').blur();
+								}, 100);
+
+								$timeout(function(){
+									scope.label_success = false;
+									scope.label_error = false;
+								}, 5000);
+
+							}else{
+								alert("Please contact Administrator.");
+							}
+
+						});
+
+					}
+
+					return false;
+				});
+			}
+		};
+	});
+
+	/* Custom Directive */
+
+
+	/* Custom Filter */
+
+	apps.filter('price', function($filter){
+		return function (number, decimal){
+			number = parseFloat(number);
+			var numb = number.toFixed( decimal );
+			var numbArr = numb.split('.');
+			if( !isNaN( number ) ){
+				if( parseInt(numbArr[1]) == 0 ){
+					return $filter('number')( numbArr[0] );
+				}else{
+					return numb;
+				}
+			}else{
+				return '';
+			}
+		};
+	});
+
+	/* Custom Filter */
+
+
+	/* Custom Function */
+
+	apps.run(function($rootScope){
+		$rootScope.render_tag = function( ObjTag ){
+			if( ObjTag.length > 0 ){
+				return '/<a href="' + ObjTag.tag_link + '">' + ObjTag.tag_name + '</a>';
+			}
+		}
+	});
+
+	apps.run(function($rootScope){
+		$rootScope.render_badges = function( type ){
+			switch( type ){
+				case 'shockprice': return '<img ng-src="' + window.asset_path + '/tl-theme/img/icon/shockprices.png' + '">'; break;
+				case 'rollback': return '<img ng-src="' + window.asset_path + '/tl-theme/img/icon/rollback.png' + '">'; break;
+				default:
+					return '';
+			}
+		}
+	});
+
+	/* Custom Function */
+
+
+
+	apps.controller('newslist', function($scope, $http){
+		$scope.is_loading = false;
+		$scope.is_empty_record = false;
+		$scope.newslist = window._news_list;
+
+		$scope.paged = 1;
+
+		$scope.orderby = '';
+
+
+		$scope.convert_text_date = function( datetime ){
+			var a = new Date( datetime );
+			var m = monthFull[ window._current_lang ][ a.getMonth() ];
+			
+			return a.getDate() + ' ' + m + ' '+ (a.getFullYear() + 543);
+		}
+
+
+		$scope.news_nextpage = function( type ){
+			$scope.paged++;
+			$scope.is_loading = true;
+			$http({
+				method: 'GET',
+				url: window._news_list_nextpage + '/' + type + '/' + $scope.paged + '?orderby=' + $scope.orderby
+			}).then(function( resp ){
+				if( resp.data.result.length > 0 ){
+					angular.forEach( resp.data.result, function(val, key){
+						$scope.newslist.push({
+							allstore: val.allstore,
+							category_seoname: val.category_seoname,
+							category_title: val.category_title,
+							cover: val.cover,
+							fromdate: val.fromdate,
+							uniqtime: val.uniqtime,
+							id: val.id,
+							intro: val.intro,
+							title: val.title,
+							views: val.views
+						});
+					});
+				}else{
+					$scope.is_empty_record = true;
+				}
+
+				$scope.is_loading = false;
+
+			});
+		}
+
+		$scope.order_by = function( type ){
+
+			$scope.paged = 0;
+			$scope.newslist = [];
+			$scope.news_nextpage( type );
+
+		}
+
+
+	});
+
+
+
+	apps.controller('bloglist', function($scope, $http){
+		$scope.is_loading = false;
+		$scope.is_empty_record = false;
+		$scope.bloglist = window._blog_list;
+		$scope.blog_recommend = typeof window._blog_list_recommend != 'undefined' ? window._blog_list_recommend : [];
+
+		$scope.paged = 1;
+
+		$scope.orderby = '';
+
+		$scope.blog_nextpage = function( type ){
+			$scope.paged++;
+			$scope.is_loading = true;
+			$http({
+				method: 'GET',
+				url: window._blog_list_nextpage + '/' + type + '/' + $scope.paged + '?orderby=' + $scope.orderby + '&lang=' + window._current_lang
+			}).then(function( resp ){
+				if( resp.data.result.length > 0 ){
+					angular.forEach( resp.data.result, function(val, key){
+						$scope.bloglist.push({
+							category_link: val.category_link ,
+							category_title: val.category_title ,
+							id: val.id ,
+							link: val.link ,
+							tag: {
+								tag_link: val.tag_link ,
+								tag_name: val.tag_name
+							} ,
+							thumbnail: val.thumbnail ,
+							title: val.title ,
+							views: val.views ,
+							recommend: val.recommend
+						});
+					});
+				}else{
+					$scope.is_empty_record = true;
+				}
+
+				$scope.is_loading = false;
+
+			});
+		}
+
+		$scope.order_by = function( type ){
+
+			$scope.paged = 0;
+			$scope.bloglist = [];
+			$scope.blog_nextpage( type );
+
+		}
+
+	});
+
+	apps.controller('blog', function($scope, $http, $timeout){
+
+		$scope.$watch('vote', function(){
+			if( typeof $scope.vote != 'undefined' ){
+				$scope.blog_vote( window._blog_id, $scope.vote );
+			}
+		});
+
+		/* Increase Pageview */
+		if( typeof window._blog_pageview != 'undefined' ){
+			$http({
+				method: 'GET' ,
+				url: window._blog_pageview
+			});
+		}
+		/* Increase Pageview */
+
+		$scope.blog_vote = function(blog_id, type){
+			$http({
+				method: 'POST' ,
+				url: window._site_params.blogVote ,
+				data: {
+					blog_id: blog_id ,
+					type: type
+				}
+			}).then(function ( resp ){
+
+				$scope.score_vote = null;
+				$scope.score_vote = resp.data.vote;
+
+				$timeout(function(){
+					$.magnificPopup.open({
+			            items: {
+			                src: '#popup-vote',
+			                type: 'inline'
+			            },
+			            preloader: false,
+			            closeOnBgClick: false,
+			            mainClass: 'popup-style popup-style-modal',
+			            showCloseBtn: false,
+			            removalDelay: 250 ,
+			            callbacks: {
+			            	open: function(){
+			            		setTimeout(function(){
+			            			$.magnificPopup.close();
+			            		}, 5000);
+			            	} ,
+			            	close: function(){
+			            		$('.vote-box').parent().fadeOut();
+			            	}
+			            }
+			        });
+
+			        $scope.vote = null;
+
+				}, 100);
+
+			});
+		}
+
+		$scope.score_vote = window._blog_vote;
+
+	});
+
+
+	apps.controller('promotion', function($scope, $http){
+
+		$scope.is_loading = false;
+		$scope.productCategory = '0';
+		$scope.productlist = typeof window._product_list != 'undefined' ? window._product_list : [];
+		$scope.productlist_total_rows = typeof window._product_list_total_rows != 'undefined' ? window._product_list_total_rows : 0;
+
+		$scope.promotion_list = typeof window._promotion_list != 'undefined' ? window._promotion_list : [];
+		$scope.promotion_total_rows = typeof window._promotion_list_total_rows != 'undefined' ? window._promotion_list_total_rows : 0;
+
+		$scope.paged = 1;
+
+		$scope.filter = '-1';
+		$scope.orderby = '-1';
+
+
+		if( typeof window._promotion_views != 'undefined' ){
+			$http({
+				method: 'POST' ,
+				url: window._promotion_views ,
+				data: { 
+					id: window._promotion_id
+				}
+			}).then(function(resp){
+
+			});
+		}
+
+
+		$scope.moreProduct = function(){
+			if( !$scope.is_loading ){
+				$scope.paged++;
+				$scope.is_loading = true;
+				$http({
+					method: 'POST' ,
+					url: window._product_promotion_url ,
+					data: { 
+						promotion_id: window._promotion_id, 
+						paged: $scope.paged, 
+						category_id: $scope.productCategory 
+					}
+				}).then(function ( resp ){
+					$scope.productlist_total_rows = resp.data.found_rows;
+					angular.forEach(resp.data.results, function(val, key){
+						$scope.productlist.push({
+							category_id: val.category_id ,
+							category_name: val.category_name ,
+							description: val.description ,
+							description_thumb: val.description_thumb ,
+							id: val.id ,
+							link: val.link ,
+							name: val.name ,
+							price: val.price ,
+							price_condition: val.price_condition ,
+							price_title: val.price_title ,
+							short_description: val.short_description ,
+							special_price: val.special_price ,
+							thumb: val.thumb
+						});
+					});
+					$scope.is_loading = false;
+				});
+			}
+		}
+
+		$scope.filterProductList = function( productCat ){
+			$scope.paged = 0;
+			$scope.productlist = [];
+			$scope.moreProduct();
+		}
+
+
+		$scope.morePromotion = function(){
+
+			if( !$scope.is_loading ){
+				$scope.paged++;
+				$scope.is_loading = true;
+				$http({
+					method: 'GET' ,
+					url: window._promotion_nextpage + '?p=' + $scope.paged + '&filter=' + $scope.filter + '&orderby=' + $scope.orderby ,
+					data: { 
+						promotion_id: window._promotion_id, 
+						paged: $scope.paged, 
+						category_id: $scope.productCategory 
+					}
+				}).then(function ( resp ){
+					$scope.productlist_total_rows = resp.data.found_rows;
+					angular.forEach(resp.data.results, function(val, key){
+						$scope.promotion_list.push({
+							title: val.title ,
+							link: val.link ,
+							thumbnail: val.thumbnail ,
+							type: val.type ,
+							period: val.period
+						});
+					});
+					$scope.is_loading = false;
+				});
+			}
+		}
+
+	});
+	
+
+	apps.controller('search', function($scope, $http){
+
+		/* Search Suggest */
+
+		$scope.suggest_result = [];
+		$scope.keywords = '';
+
+		$scope.search_suggestion = function(keyword, event){
+
+			if( typeof $scope.keywords != 'undefined' && $scope.keywords.length > 3 ){
+
+				angular.element('.suggestion').removeAttr('style');
+
+				$http({
+					method: 'POST' ,
+					url: window._site_params.suggest ,
+					data: {
+						keyword: $scope.keywords
+					}
+				}).then(function( resp ){
+					$scope.suggest_result = resp.data.result;
+				});
+
+			}
+		}
+
+		/* Search Suggest */
+
+
+		/* Search Results */
+		$scope.is_loading = false;
+		$scope.paged = 1;
+		$scope.search_results = typeof window._search_results != 'undefined' ? window._search_results : [];
+
+
+		$scope.loadmore = function(){
+			$scope.is_loading = true;
+			$scope.paged++;
+			$http({
+				method: 'POST',
+				url: window._search_nextpage ,
+				data: {
+					keywords: window._search_keywords ,
+					paged: $scope.paged
+				}
+			}).then(function( resp ){
+
+				angular.forEach(resp.data.result, function(val, key){
+					$scope.search_results.push({
+						thumbnail: val.thumbnail ,
+						id: val.id ,
+						title: val.title ,
+						desc: val.desc ,
+						link: val.link ,
+						type: val.type ,
+						views: ( typeof val.views != 'undefined' ? val.views : 0 ) ,
+						tags: ( typeof val.tags != 'undefined' ? val.tags : null )
+					});
+				});
+
+				$scope.is_loading = false;
+
+			});
+		}
+		
+
+		/* Search Results*/
+
+
+	});
+	
+
+	apps.controller('property', function($scope, $http, $timeout){
+
+		$scope.around_etc = false;
+		$scope.found_error = false;
+
+		$scope.province = window._province;
+		$scope.district = window._all_district;
+		$scope.all_district = window._all_district;
+		$scope.subdistrict = [];
+		// $scope.group_district = window._group_district;
+
+
+		angular.element('select[name=province]').bind('change', function(){
+
+			var province_id = angular.element( this ).find('option:selected').data('id');
+
+			angular.element('select[name=district] option').hide();
+			angular.element('select[name=district] option[data-province-id='+ province_id +']').show();
+
+			$timeout(function(){
+
+				$('select[name=district]').select2('destroy');
+				$('select[name=district]').select2({
+		            width: '100%',
+		            minimumResultsForSearch: -1
+		        });
+
+			}, 100);
+
+		});
+
+
+		angular.element('select[name=district]').bind('change', function(){
+
+			var province_id = angular.element( this ).find('option:selected').data('id');
+			// console.log( province_id );
+
+			angular.element('select[name=subdistrict] option').hide();
+			angular.element('select[name=subdistrict] option[data-district-id="'+ province_id +'"]').show();
+
+			$timeout(function(){
+
+				$('select[name=subdistrict]').select2('destroy');
+				$('select[name=subdistrict]').select2({
+		            width: '100%',
+		            minimumResultsForSearch: -1
+		        });
+
+			}, 100);
+
+		});
+
+
+		$scope.property_submit = function(){
+
+			$scope.found_error = false;
+			var foundError = false;
+
+			angular.element('#formProperty .input-required').removeClass('input-required');
+
+			angular.forEach(angular.element('input.require, select.require'), function(val, key){
+					
+				if( angular.element( val ).is('input') && angular.element( val ).val() == '' ){
+					angular.element( val ).parent().addClass('input-required');
+					// $scope.found_error = true;
+					foundError = true;
+				}
+
+				if( angular.element( val ).is('select') && angular.element( val ).find('option:selected').val() == '' ){
+					angular.element( val ).parents('.field-half').find('.input').addClass('input-required');
+					// $scope.found_error = true;
+					foundError = true;
+				}
+
+			});
+
+			$timeout(function(){
+
+				if( !foundError && angular.element('input[name=areaType]:checked').length == 0 ){
+					foundError = true;
+					$timeout(function(){
+						alert("กรุณาเลือกประเภทพื้นที่");
+					});
+					// $scope.found_error = true;
+				}
+	
+	
+				if( !foundError && angular.element('input[name=privacy]:checked').length == 0 ){
+					foundError = true;
+					$timeout(function(){
+						alert("กรุณายอมรับเงื่อนไขข้อตกลง");
+					});
+					// $scope.found_error = true;
+				}
+
+				$scope.found_error = foundError;
+
+				if( !foundError ){
+					
+
+					angular.element('.tl-preload').fadeIn(250);
+	
+					var fd = new FormData( angular.element('#formProperty')[0] );
+					var files1 = angular.element('#file1');
+					var files2 = angular.element('#file2');
+					fd.append("file", files1[0]);
+					fd.append("file", files2[0]);
+	
+					$http.post(window._property_submit, fd, {
+						headers: {'Content-Type': undefined,'Process-Data': false}
+					}).then(function( resp ){
+	
+						if( resp.data.response == 'success' ){
+							angular.element('.tl-preload').fadeOut();
+							$timeout(function(){
+								$.magnificPopup.open({
+									items: {
+										src: '#popup-property',
+										type: 'inline'
+									},
+									preloader: false,
+									closeOnBgClick: false,
+									mainClass: 'popup-style popup-style-modal',
+									showCloseBtn: false,
+									removalDelay: 250 ,
+									callbacks: {
+										open: function(){
+											setTimeout(function(){
+												$.magnificPopup.close();
+												$('#formProperty').find('input[type=text],input[type=email],textarea').val('');
+											}, 5000);
+										} ,
+										close: function(){
+											$('#formProperty').find('input[type=text],input[type=email],textarea').val('');
+										}
+									}
+								});
+	
+							}, 100);
+						}
+	
+					});
+	
+				}
+
+			}, 500);
+
+			return false;
+		}
+
+
+	});
+
+
+	apps.controller('newsctrl', function($scope, $http){
+
+		/* Increase Pageview */
+		if( typeof window._news_pageview != 'undefined' ){
+			$http({
+				method: 'GET' ,
+				url: window._news_pageview
+			});
+		}
+		/* Increase Pageview */
+
+	});
+
+
+	apps.controller('newspage', function($scope, $http){
+		
+		$scope.paged = 1;
+		$scope.results = window._results;
+
+
+		$scope.convert_text_date = function( datetime ){
+			var a = new Date( datetime );
+			var m = monthFull[ window._current_lang ][ a.getMonth() ];
+			
+			return a.getDate() + ' ' + m + ' '+ (a.getFullYear() + 543);
+		}
+
+
+		$scope.nextpage = function(){
+			angular.element('.tl-loading').removeClass('hide');
+			angular.element('#parent-button').addClass('hide');
+			$scope.paged++;
+			$http({
+				method: 'GET',
+				url: window._nextpage_url + '/' + $scope.paged + '?lang=' + window._current_lang
+			}).then(function( resp ){
+				angular.element('.tl-loading').addClass('hide');
+				angular.element('#parent-button').removeClass('hide');
+				
+				angular.forEach(resp.data.results, function(val, key){
+					$scope.results.push({
+						id: val.id ,
+						title: val.title ,
+						intro: val.intro ,
+						cover: val.cover ,
+						photo: val.photo ,
+						fromdate: val.fromdate ,
+						allstore: val.allstore ,
+						category_title: val.category_title ,
+						category_seoname: val.category_seoname ,
+						clubcard_category_id: val.clubcard_category_id
+					});
+				});
+
+			});
+		}
+
+
+	});
+
+
+	apps.controller('tagpage', function($scope, $http){
+
+		$scope.paged = 1;
+		$scope.tagname = window._tagname;
+		$scope.is_empty_record = window._blog_tag_list.length == 0 ? true : false;
+		$scope.bloglist = window._blog_tag_list;
+		$scope.is_loading = false;
+
+		$scope.blog_tag_nextpage = function(){
+
+			$scope.is_loading = true;
+			$scope.paged++;
+
+			$http({
+				method: 'GET',
+				url: window._moreurl + '?paged=' + $scope.paged + '&tagname=' + window._tagname + '&filter=' + window._tag_filter
+			}).then(function( resp ){
+
+				$scope.is_loading = false;
+
+				if( resp.data.length > 0 ){
+					angular.forEach(resp.data, function(val, key){
+						$scope.bloglist.push({
+							thumbnail: val.thumbnail ,
+							id: val.id ,
+							title: val.title ,
+							desc: val.desc ,
+							link: val.link ,
+							type: val.type ,
+							views: ( typeof val.views != 'undefined' ? val.views : 0 ) ,
+							tags: ( typeof val.tags != 'undefined' ? val.tags : null )
+						});
+					});
+				}
+
+			});
+
+		}
+
+	});
+
+
+	apps.controller('giftcard-order', function($scope, $http, $timeout){
+
+		$scope.order_tab = 'personal';
+		$scope.price_100 = 0;
+		$scope.price_300 = 0;
+		$scope.price_500 = 0;
+		$scope.price_1000 = 0;
+
+		$scope.province = window._province;
+		$scope.district = window._all_district;
+		$scope.all_district = window._all_district;
+		$scope.subdistrict = []; //window._all_subdistrict;
+
+		var patt = /^0/;
+		$scope.$watch('price_100', function(n, o){
+			if( n != 0 && patt.test(n) ){
+				$scope.price_100 = $scope.price_100.replace(/^0/, '');
+			}
+		});
+
+		$scope.$watch('price_300', function(n, o){
+			if( n != 0 && patt.test(n) ){
+				$scope.price_300 = $scope.price_300.replace(/^0/, '');
+			}
+		});
+
+		$scope.$watch('price_500', function(n, o){
+			if( n != 0 && patt.test(n) ){
+				$scope.price_500 = $scope.price_500.replace(/^0/, '');
+			}
+		});
+
+		$scope.$watch('price_1000', function(n, o){
+			if( n != 0 && patt.test(n) ){
+				$scope.price_1000 = $scope.price_1000.replace(/^0/, '');
+			}
+		});
+
+
+
+		angular.element('select[name=province]').bind('change', function(){
+
+			var province_id = angular.element( this ).find('option:selected').data('id');
+
+			angular.element('select[name=district] option').hide();
+			angular.element('select[name=district] option[data-province-id='+ province_id +']').show();
+
+			$timeout(function(){
+
+				$('select[name=district]').select2('destroy');
+				$('select[name=district]').select2({
+		            width: '100%',
+		            minimumResultsForSearch: -1
+		        });
+
+			}, 100);
+
+		});
+
+
+		angular.element('select[name=district]').bind('change', function(){
+
+			var province_id = angular.element( this ).find('option:selected').data('id');
+
+			angular.element('select[name=subdistrict] option').hide();
+			angular.element('select[name=subdistrict] option[data-district-id="'+ province_id +'"]').show();
+
+			$timeout(function(){
+
+				$('select[name=subdistrict]').select2('destroy');
+				$('select[name=subdistrict]').select2({
+		            width: '100%',
+		            minimumResultsForSearch: -1
+		        });
+
+			}, 100);
+
+		});
+
+
+
+		$scope.sum_giftcard_order = function(){
+
+			var _100 = typeof $scope.price_100 == 'undefined' || $scope.price_100 == '' ? 0 : $scope.price_100;
+			var _300 = typeof $scope.price_300 == 'undefined' || $scope.price_300 == '' ? 0 : $scope.price_300;
+			var _500 = typeof $scope.price_500 == 'undefined' || $scope.price_500 == '' ? 0 : $scope.price_500;
+			var _1000 = typeof $scope.price_1000 == 'undefined' || $scope.price_1000 == '' ? 0 : $scope.price_1000;
+
+			return parseInt(_100)+parseInt(_300)+parseInt(_500)+parseInt(_1000);
+
+		}
+
+
+		$scope.sub_price_giftcard = function(){
+
+			var _100 = typeof $scope.price_100 == 'undefined' ? 0 : $scope.price_100;
+			var _300 = typeof $scope.price_300 == 'undefined' ? 0 : $scope.price_300;
+			var _500 = typeof $scope.price_500 == 'undefined' ? 0 : $scope.price_500;
+			var _1000 = typeof $scope.price_1000 == 'undefined' ? 0 : $scope.price_1000;
+
+			var price = 0;
+				price += _100*100;
+				price += _300*300;
+				price += _500*500;
+				price += _1000*1000;
+
+			return price;
+		}
+
+
+		$scope.set_order_tab = function( value ){
+			$scope.order_tab = value;
+		}
+
+
+		angular.element('#formGiftcardOrder').on('submit', function(){
+
+			angular.element('#formGiftcardOrder').find('.input-required').removeClass('input-required');
+
+			var _price100 = typeof $scope.price_100 == 'undefined' ? 0 : $scope.price_100;
+			var _price300 = typeof $scope.price_300 == 'undefined' ? 0 : $scope.price_300;
+			var _price500 = typeof $scope.price_500 == 'undefined' ? 0 : $scope.price_500;
+			var _price1000 = typeof $scope.price_1000 == 'undefined' ? 0 : $scope.price_1000;
+
+			var found = false;
+
+
+			if( _price100 == 0 && _price300 == 0 && _price500 == 0 && _price1000 == 0 ){
+				$timeout(function(){ alert( window._alert_text.price ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=giftcard_order_type]').val() == 'corporate' && angular.element('input[name=company_name]').val() == '' ){
+				angular.element('input[name=company_name]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.company ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=giftcard_order_type]').val() == 'personal' ){
+				if( angular.element('input[name=firstname]').val() == '' ){
+					angular.element('input[name=firstname]').parents('.field').find('>.input').addClass('input-required');
+					$timeout(function(){ alert( window._alert_text.firstname ); }, 100);
+					found = true;
+					return false;
+				}else if( angular.element('input[name=lastname]').val() == '' ){
+					angular.element('input[name=lastname]').parents('.field').find('>.input').addClass('input-required');
+					$timeout(function(){ alert( window._alert_text.lastname ); }, 100);
+					found = true;
+					return false;
+				}
+			}
+
+			if( !found && angular.element('input[name=email]').val() == '' ){
+				angular.element('input[name=email]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.email ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=phone]').val() == '' ){
+				angular.element('input[name=phone]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.phone ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=giftcard_order_type]').val() == 'corporate' && angular.element('input[name=company_ids]').val() == '' ){
+				angular.element('input[name=company_ids]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.company_id ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=giftcard_order_type]').val() == 'personal' && angular.element('input[name=person_ids]').val() == '' ){
+				angular.element('input[name=person_ids]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.person_id ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=address]').val() == '' ){
+				angular.element('input[name=address]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.address ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('select[name=province] option:selected').val() == '' ){
+				angular.element('select[name=province]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.province ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('select[name=district] option:selected').val() == '' ){
+				angular.element('select[name=district]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.district ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=subdistrict]').val() == '' ){
+				angular.element('input[name=subdistrict]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.subdistrict ); }, 100);
+				found = true;
+				return false;
+			}
+
+			if( !found && angular.element('input[name=zipcode]').val() == '' ){
+				angular.element('input[name=zipcode]').parents('.field').find('>.input').addClass('input-required');
+				$timeout(function(){ alert( window._alert_text.zipcode ); }, 100);
+				found = true;
+				return false;
+			}
+
+
+
+			if( !found ){
+				$http({
+					method: 'POST',
+					url: window._save_order,
+					data: angular.element('#formGiftcardOrder').serialize()
+				}).then(function( resp ){
+
+					if( typeof resp.data.redirect != 'undefined' ){
+						window.location = resp.data.redirect;
+					}
+
+				});
+			}
+
+			return false;
+		});
+
+	});
+
+
+	apps.controller('locationShoponline', function($scope, $http, $timeout){
+
+		$scope.checker = false;
+
+		$scope.province_name = null;
+
+		$scope.province = window._province;
+		$scope.district = [];
+		$scope.subdistrict = [];
+
+		$scope.foundLocation = false;
+
+		$scope.$watch('province_name', function(n, o){
+			$http({
+				method: 'POST',
+				url: site_url + 'service/get_shoponline_district',
+				data: { province: n, lang: window._current_lang }
+			}).then(function( res ){
+				$scope.checker = false;
+				$scope.district = res.data;
+			});
+		});
+
+
+		$scope.$watch('district_name', function(n, o){
+			$http({
+				method: 'POST',
+				url: site_url + 'service/get_shoponline_subdistrict',
+				data: { district: n, lang: window._current_lang }
+			}).then(function( res ){
+				$scope.checker = false;
+				$scope.subdistrict = res.data;
+			});
+		});
+
+		$scope.$watch('subdistrict_name', function(n, o){
+			$scope.checker = false;
+		});
+
+
+		$scope.resetform = function(){
+			$scope.province = [];
+			$scope.province = window._province;
+			$scope.province_name = null;
+			$scope.district = [];
+			$scope.subdistrict = [];
+			$scope.checker = false;
+			$timeout(function(){
+				$('#shoponline-province').select2("destroy");
+				$('#shoponline-province').select2({
+					width: '100%',
+					minimumResultsForSearch: -1,
+					dropdownParent: $('#shoponline-province').parents('.select') ,
+				});
+			}, 100);
+		}
+
+		$scope.searchLocation = function(){
+			$http({
+				method: 'POST',
+				url: site_url + 'service/get_shoponline_available',
+				data: {
+					province: $scope.province_name,
+					district: $scope.district_name,
+					subdistrict: $scope.subdistrict_name
+				}
+			}).then(function( res ){
+				$scope.checker = true;
+				if( res.data.resp == 'found' ){
+					$scope.foundLocation = true;
+					if( is_mobile() ) {
+						$timeout(function(){
+							$('html, body').animate({
+								scrollTop: ($("#output-result-postcode").offset().top)
+							}, 1000);
+						}, 100);
+					}
+				}else{
+					$scope.foundLocation = false;
+					if( is_mobile() ) {
+						$timeout(function(){
+							$('html, body').animate({
+								scrollTop: ($("#output-result-postcode").offset().top)
+							}, 1000);
+						}, 100);
+					}
+				}
+			});
+		}
+
+	});
+
+
+	apps.controller('PlazaPage', function($scope, $http){
+		
+		$scope.is_loading = false;
+		$scope.total = window._total;
+		$scope.results = window._results;
+
+		var current_page = 1;
+
+		$scope.loadmore = function(type){
+			$scope.is_loading = true;
+			current_page++;
+			$http({
+				method: 'GET',
+				url: site_url + 'plaza/ajax-next-page/'+ window._current_lang +'/'+ type +'/'+ current_page
+			}).then(function(resp){
+				$scope.is_loading = false;
+				angular.forEach(resp.data, function(v, k){
+					$scope.results.push( v );
+				});
+			});
+		}
+
+	});
+

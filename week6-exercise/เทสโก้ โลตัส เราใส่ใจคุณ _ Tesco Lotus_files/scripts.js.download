@@ -1,0 +1,144 @@
+var clipboard = new ClipboardJS('.copytoclipboard', {
+    text: function(trigger) {
+        return trigger.getAttribute('aria-label');
+    }
+});
+
+clipboard.on('success', function(){
+    $('#clipboard').fadeIn(250);
+    setTimeout(function(){
+        $('#clipboard').fadeOut(350);
+    }, 1000);
+});
+
+
+/* ============= :: SOCIAL SHARE :: ============ */
+
+function addQS(d, c) {
+    var a = [];
+    for (var b in c)
+        if (c[b]) a.push(b.toString() + '=' + encodeURIComponent(c[b]));
+    return d + '?' + a.join('&')
+}
+function getMETAContent(attr,data){
+    var meta = document.getElementsByTagName("META"),
+        max = meta.length;
+    for(var i = 0; i<max; i++){
+        if(meta[i].getAttribute(attr) == data){
+            return meta[i].content;
+        }
+    }
+    return -1;
+}
+
+function fbShare() {
+    var _img = arguments[0] || null,
+        _uri = arguments[1] || document.URL,
+        _caption = arguments[2] || document.title;
+    
+    if(_img){
+        FB.ui({
+            method: 'feed',
+            link: _uri,
+            caption: _caption,
+            picture: _img
+        });
+        return false
+    }
+    var g = {
+        u: document.URL,
+        t: document.title
+    };
+    var a = addQS('https://www.facebook.com/sharer.php', g);
+    window.open(a, 'sharer', 'toolbar=0,status=0,width=626,height=436');
+    return false
+}
+
+function tweetShare() {
+    var g = {
+        url: document.URL,
+        text: document.title + ' - '
+    };
+    var a = addQS('http://twitter.com/share', g);
+    window.open(a, 'tweet', 'toolbar=0,status=0,width=626,height=436');
+    return false;
+}
+
+function tweetURLShare(u) {
+    var g = {
+        url: u,
+        via: 'เทสโก้โลตัส',
+        related: '',
+        hashtags: 'เทสโก้โลตัส',
+        text: document.title
+    };
+    var a = addQS('http://twitter.com/share', g);
+    window.open(a, 'tweet', 'toolbar=0,status=0,width=626,height=436');
+    return false;
+}
+
+function gpShare() {
+    var g = {
+        url: document.URL,
+        hl:"th"
+    };
+    var a = addQS('https://plus.google.com/share', g);
+    window.open(a, 'sharer', 'menubar=no,toolbar=no,resizable=yes,status=0,width=600,height=600');
+    return false;
+}
+
+function lineMSG(){
+    window.location = "line://msg/text/"+encodeURIComponent(document.URL);
+}
+
+function pinShare(m) {
+    var ogimg = getMETAContent("property","og:image");
+    ogimg = ogimg.replace("480x250","full");
+    
+    var g = {
+        url: document.URL,
+        description:document.title+'\n'+$("meta[property=og\\:description]").attr('content'),
+		media:ogimg
+    };
+ 
+    if(m!=undefined)g.media = m;
+    var a = addQS('https://www.pinterest.com/pin/create/button/', g);
+    window.open(a, 'sharer', 'menubar=no,toolbar=no,resizable=yes,status=0,width=750,height=331');
+    return false;
+}
+
+function mailShare(){
+    var g = 'mailto:';
+        g += '?subject='+encodeURIComponent(document.title)+' %2D TescoLotus.com';
+        g += '&body='+$("meta[property=og\\:description]").attr('content')+'\n\n'+encodeURIComponent(document.URL);
+win = window.open(g, 'emailWindow');
+}
+
+// Sharer //
+
+function fbIMGShare(img) {
+    var g = {
+        u: document.URL + "?fbimg=" + img,
+        t: document.title
+    };
+    var a = addQS('https://www.facebook.com/sharer.php', g);
+    window.open(a, 'sharer', 'toolbar=0,status=0,width=626,height=436');
+    return false
+}
+
+function fbURLShare(u) {
+    var g = {
+        u: u,
+        t: document.title
+    };
+    var a = addQS('https://www.facebook.com/sharer.php', g);
+    window.open(a, 'sharer', 'toolbar=0,status=0,width=626,height=436');
+    return false;
+}
+
+function isNumberKey(evt){
+    var charCode = (evt.which) ? evt.which : event.keyCode
+    if (charCode > 31 && (charCode < 48 || charCode > 57))
+        return false;
+    return true;
+}

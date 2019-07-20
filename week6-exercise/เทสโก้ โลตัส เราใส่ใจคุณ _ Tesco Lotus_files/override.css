@@ -1,0 +1,15 @@
+/* Wait for Slick Init */
+.hero-slider{
+    visibility: hidden;
+}
+.hero-slider.slick-initialized{
+    visibility: visible;
+}
+
+.search-box .input-with-suggestion .suggestion{
+	display: block;
+}
+
+[ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+  display: none !important;
+}
